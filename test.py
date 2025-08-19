@@ -4,7 +4,7 @@ import math
 import datetime
 
 # 페이지 기본 설정
-st.set_page_config(page_title="📚 맞춤 학습 플래너", page_icon="📝", layout="centered")
+st.set_page_config(page_title="효율적인 공부중..", page_icon="✏️", layout="centered")
 
 # 스타일
 st.markdown("""
@@ -28,18 +28,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 제목
-st.title("📝 맞춤 학습 계획 추천")
-st.subheader("나의 학습 성향과 목표를 기반으로 효율적인 학습 계획을 세워드려요!")
+st.title("✏️ 효율적인 공부중..")
+st.subheader("나의 성향과 목표를 기반으로 효율적인 학습 플랜을 세워드려요!")
 
 # ----------------------------
 # 1단계: 학습 성향 진단
 # ----------------------------
 st.markdown("## ✨ Step 1. 학습 성향 진단")
 
-style = st.radio(
-    "📌 선호하는 학습 스타일은?",
-    ["🖼️ 시각형 (도표, 이미지 중심)", "🎧 청각형 (강의, 설명 중심)", "✍️ 실천형 (문제풀이, 실습 위주)"]
+fun_choice = st.radio(
+    "🍫 초콜릿이 좋으세요, ☕ 커피가 좋으세요?",
+    ["🍫 초콜릿", "☕ 커피", "📚 둘 다!"]
 )
+
+if fun_choice == "🍫 초콜릿":
+    style = "🖼️ 시각형 (도표, 이미지 중심)"
+elif fun_choice == "☕ 커피":
+    style = "🎧 청각형 (강의, 설명 중심)"
+else:
+    style = "✍️ 실천형 (문제풀이, 실습 위주)"
 
 focus_time = st.radio(
     "🕐 집중이 잘 되는 시간대는?",
@@ -70,7 +77,6 @@ if st.button("📖 나만의 학습 계획 세우기"):
     study_blocks = int(total_hours / 1.5)   # 1.5시간 단위 블록
     daily_blocks = math.ceil(study_blocks / days_left)
 
-    # 성향별 맞춤 팁
     tips = {
         "🖼️ 시각형 (도표, 이미지 중심)": "👉 플래시카드, 마인드맵, 컬러노트로 정리하면 효과적이에요.",
         "🎧 청각형 (강의, 설명 중심)": "👉 강의 듣기, 설명 녹음 후 반복 청취를 추천해요.",
