@@ -1,5 +1,6 @@
 import streamlit as st
-import random
+st.write(st.__version__)
+'''import random
 import pandas as pd
 from datetime import datetime
 
@@ -138,3 +139,4 @@ elif st.session_state.mode == "goals":
         st.session_state.mode = None
         st.session_state.goals = []
         st.experimental_rerun()
+'''
