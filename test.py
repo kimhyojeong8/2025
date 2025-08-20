@@ -1,89 +1,189 @@
 import streamlit as st
 import datetime
-import pandas as pd
 
-# 페이지 기본 설정
-st.set_page_config(page_title="효율적인 공부중..", page_icon="✏️", layout="centered")
+# --- 테마 데이터 (텍스트, 색상, 효과 + CSS 애니메이션) ---
+themes = {
+    500: {
+        "name": "숲 테마 🌳",
+        "color": "#2ecc71",
+        "effect": "sparkle",
+    },
+    1000: {
+        "name": "바다 테마 🌊",
+        "color": "#3498db",
+        "effect": "wave",
+    },
+    1500: {
+        "name": "사막 테마 🏜️",
+        "color": "#e67e22",
+        "effect": "sand",
+    },
+    2000: {
+        "name": "겨울 테마 ❄️",
+        "color": "#ecf0f1",
+        "effect": "snow",
+    },
+    2500: {
+        "name": "비 오는 테마 🌧️",
+        "color": "#95a5a6",
+        "effect": "rain",
+    },
+}
 
-st.title("✏️ 효율적인 공부중..")
-st.subheader("나의 성향과 목표를 기반으로 효율적인 학습 플랜을 세워드려요!")
+# --- 초기 상태 ---
+if "points" not in st.session_state:
+    st.session_state.points = 0
+if "themes" not in st.session_state:
+    st.session_state.themes = {}
+if "last_attendance" not in st.session_state:
+    st.session_state.last_attendance = None
+if "new_theme" not in st.session_state:
+    st.session_state.new_theme = None
+if "page" not in st.session_state:
+    st.session_state.page = None
+if "current_theme" not in st.session_state:
+    st.session_state.current_theme = None
 
-# ----------------------------
-# 1단계: 학습 성향 진단
-# ----------------------------
-st.markdown("## ✨ Step 1. 학습 성향 진단")
-
-fun_choice = st.radio(
-    "🍫 초콜릿이 좋으세요, ☕ 커피가 좋으세요?",
-    ["🍫 초콜릿", "☕ 커피", "📚 둘 다!"]
-)
-
-if fun_choice == "🍫 초콜릿":
-    style = "🖼️ 시각형 (도표, 이미지 중심)"
-elif fun_choice == "☕ 커피":
-    style = "🎧 청각형 (강의, 설명 중심)"
+# --- 현재 적용 테마 결정 ---
+if st.session_state.themes:
+    # 가장 최근 획득한 테마 적용
+    st.session_state.current_theme = list(st.session_state.themes.values())[-1]
 else:
-    style = "✍️ 실천형 (문제풀이, 실습 위주)"
+    st.session_state.current_theme = {"color": "#2ecc71", "effect": "default"}  # 기본 초록색
 
-focus_time = st.radio(
-    "🕐 집중이 잘 되는 시간대는?",
-    ["🌅 아침", "🌞 오후", "🌙 밤"]
-)
+# --- CSS 애니메이션 정의 ---
+css = """
+<style>
+body {
+    background-color: %(bg_color)s;
+    font-family: 'Comic Sans MS', cursive, sans-serif;
+}
+.sparkle::before {
+    content: '✨✨✨✨✨';
+    position: fixed; top: 20px; left: 50%%;
+    animation: sparkle 2s infinite alternate;
+}
+@keyframes sparkle {
+    from { opacity: 0.2; transform: scale(0.8);}
+    to { opacity: 1; transform: scale(1.2);}
+}
+.snow::before {
+    content: '❄️❄️❄️❄️❄️';
+    position: fixed; top: -10px; left: 50%%;
+    animation: snow 5s linear infinite;
+}
+@keyframes snow {
+    from { top: -10px; }
+    to { top: 100%%; }
+}
+.rain::before {
+    content: '💧💧💧💧💧';
+    position: fixed; top: -10px; left: 50%%;
+    animation: rain 1s linear infinite;
+}
+@keyframes rain {
+    from { top: -10px; }
+    to { top: 100%%; }
+}
+.wave::before {
+    content: '🌊🌊🌊';
+    position: fixed; bottom: 0; left: 50%%;
+    animation: wave 2s ease-in-out infinite alternate;
+}
+@keyframes wave {
+    from { transform: translateX(-50%%) scale(1);}
+    to { transform: translateX(-50%%) scale(1.2);}
+}
+.sand::before {
+    content: '🌪️🌪️🌪️';
+    position: fixed; top: 20px; left: 50%%;
+    animation: sand 3s infinite linear;
+}
+@keyframes sand {
+    from { transform: translateX(-50%%) rotate(0deg);}
+    to { transform: translateX(-50%%) rotate(360deg);}
+}
+</style>
+""" % {"bg_color": st.session_state.current_theme["color"]}
 
-study_mode = st.radio(
-    "📖 선호하는 학습 방식은?",
-    ["⏱️ 짧게 자주 반복", "💡 오래 몰입해서 집중"]
-)
+# --- CSS 삽입 ---
+st.markdown(css, unsafe_allow_html=True)
+st.markdown(f"<div class='{st.session_state.current_theme['effect']}'></div>", unsafe_allow_html=True)
 
-st.markdown("---")
+# --- 앱 이름 ---
+st.title("🌱 Green Activity for Me")
 
-# ----------------------------
-# 2단계: 학습 목표 및 각 목표 남은 기간 입력
-# ----------------------------
-st.markdown("## ✨ Step 2. 학습 목표와 목표별 남은 기간 입력")
+# --- 네비게이션 버튼 ---
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("내 활동"):
+        st.session_state.page = "activity"
+with col2:
+    if st.button("테마 목록"):
+        st.session_state.page = "themes"
 
-goals_input = st.text_area(
-    "📌 학습 목표를 입력하세요 (줄바꿈으로 구분)",
-    placeholder="예) 수학 5단원 완벽 이해\n영어 단어 300개 암기\n한국사 연표 정리",
-    height=100
-)
-goals = [g.strip() for g in goals_input.split("\n") if g.strip()]
-
-goal_periods = []
-for goal in goals:
-    period = st.number_input(f"'{goal}'를 완료할 남은 기간 (일수)", min_value=1, value=1, step=1, key=goal)
-    goal_periods.append(period)
-
-# ----------------------------
-# 3단계: 학습 계획 생성
-# ----------------------------
-if st.button("📖 나만의 학습 계획 세우기"):
-    if not goals:
-        st.warning("학습 목표를 입력해주세요!")
+# -------------------- 내 활동 페이지 --------------------
+if st.session_state.page == "activity":
+    st.header("📅 출석 체크")
+    today = datetime.date.today()
+    if st.session_state.last_attendance != today:
+        if st.button("출석 체크 하기 (+100점)"):
+            st.session_state.points += 100
+            st.session_state.last_attendance = today
+            st.success(f"출석 완료! +100점 (총점: {st.session_state.points})")
     else:
-        today = datetime.date.today()
-        plan = []
+        st.info("오늘은 이미 출석했습니다 ✅")
 
-        # 각 목표별 기간만큼 캘린더에 배치
-        for goal, period in zip(goals, goal_periods):
-            for i in range(period):
-                plan.append({"날짜": today + datetime.timedelta(days=i), "학습 목표": goal})
+    st.header("♻️ 오늘의 활동 기록")
+    activity = st.selectbox("활동 종류", ["분리수거", "전기 절약", "친환경 캠페인", "기타"])
+    
+    if activity == "기타":
+        etc_input = st.text_input("기타 활동 내용을 입력하세요:")
+        if st.button("기타 활동 기록하기 (+45점)"):
+            if etc_input.strip():
+                st.session_state.points += 45
+                st.success(f"'{etc_input}' 활동으로 45점 획득! (총점: {st.session_state.points})")
+            else:
+                st.warning("활동 내용을 입력해주세요!")
+    else:
+        if st.button("활동 기록하기"):
+            activity_points = {"분리수거": 50, "전기 절약": 70, "친환경 캠페인": 100}
+            gained = activity_points.get(activity, 0)
+            st.session_state.points += gained
+            st.success(f"{activity} 활동으로 {gained}점 획득! (총점: {st.session_state.points})")
 
-        df_plan = pd.DataFrame(plan)
+    # --- 테마 자동 획득 ---
+    for score, theme in themes.items():
+        if st.session_state.points >= score and theme["name"] not in st.session_state.themes:
+            st.session_state.themes[theme["name"]] = theme
+            st.session_state.new_theme = theme["name"]
+            st.session_state.current_theme = theme
+            st.balloons()
 
-        # ----------------------------
-        # 오늘의 권장 학습
-        # ----------------------------
-        st.subheader(f"📅 오늘의 권장 학습 ({today})")
-        today_tasks = df_plan[df_plan["날짜"] == today]["학습 목표"].tolist()
-        if today_tasks:
-            for idx, task in enumerate(today_tasks, 1):
-                st.write(f"{idx}. {task}")
+    if st.session_state.new_theme:
+        st.success(f"🎉 NEW! {st.session_state.new_theme}를 획득했습니다!")
+        st.session_state.new_theme = None
+
+# -------------------- 테마 목록 페이지 --------------------
+elif st.session_state.page == "themes":
+    st.header("📖 테마 목록")
+    owned = list(st.session_state.themes.keys())
+    not_owned = [theme["name"] for theme in themes.values() if theme["name"] not in owned]
+
+    st.markdown(f"✅ 보유 테마 수: {len(owned)} / {len(themes)}")
+    st.markdown(f"❌ 미보유 테마 수: {len(not_owned)}")
+
+    # 테마 표시
+    for score, theme in themes.items():
+        if theme["name"] in st.session_state.themes:
+            st.markdown(
+                f"<div style='padding:10px; margin:10px 0; background-color:{theme['color']}; border-radius:10px;'>"
+                f"<b>{theme['name']}</b> - 효과: {theme['effect']} ✅</div>",
+                unsafe_allow_html=True
+            )
         else:
-            st.write("오늘은 특별한 학습 목표가 없어요! 여유롭게 보내세요 🌿")
-
-        # ----------------------------
-        # 전체 캘린더
-        # ----------------------------
-        st.subheader("🗓 전체 학습 캘린더")
-        st.dataframe(df_plan, use_container_width=True)
+            st.markdown(
+                f"<div style='padding:10px; margin:10px 0; background-color:#bdc3c7; border-radius:10px;'>"
+                f"{theme['name']} (미보유, 필요 점수: {score})</div>",
+                unsafe_allow_html=True
+            )
