@@ -5,12 +5,35 @@ import datetime
 st.set_page_config(page_title="Green Activity for Me", layout="centered")
 
 # ------------------ 테마 정의 ------------------
-themes = {
-    500: {"name": "숲 테마 🌳", "color": "#2ecc71", "effect": "sparkle"},
-    1000: {"name": "바다 테마 🌊", "color": "#3498db", "effect": "rain"},
-    1500: {"name": "사막 테마 🏜️", "color": "#e67e22", "effect": "sparkle"},
-    2000: {"name": "겨울 테마 ❄️", "color": "#8ecae6", "effect": "snow"},
-}
+# ------------------ 현재 배경 색상 계산 ------------------
+def get_background_color():
+    """획득한 테마 중 가장 점수가 높은 테마를 기준으로 배경 색상 반환"""
+    if not st.session_state.themes_owned:
+        # 획득 전 기본 초록색
+        return "linear-gradient(135deg, #eafaf0 0%, #d7f4dd 50%, #bff0c5 100%)"
+    else:
+        # 획득 테마 점수 기준 최상위 테마
+        top_score = max([score for score, theme in themes.items() if theme["name"] in st.session_state.themes_owned])
+        theme = themes[top_score]
+        color_map = {
+            "숲 테마 🌳": "#2ecc71",
+            "바다 테마 🌊": "#3498db",
+            "사막 테마 🏜️": "#e67e22",
+            "겨울 테마 ❄️": "#8ecae6"
+        }
+        return color_map.get(theme["name"], "#ffffff")  # fallback 흰색
+
+# ------------------ 동적 배경 적용 ------------------
+bg_color = get_background_color()
+st.markdown(f"""
+    <style>
+    .stApp {{
+        background: {bg_color};
+        transition: background 0.8s ease;
+    }}
+    </style>
+""", unsafe_allow_html=True)
+
 
 # ------------------ 세션 초기화 ------------------
 if "points" not in st.session_state:
