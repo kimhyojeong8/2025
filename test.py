@@ -168,10 +168,15 @@ elif st.session_state.mode == "goals":
     if st.session_state.goals:
         df = pd.DataFrame(st.session_state.goals)
         st.dataframe(df, use_container_width=True)
+        
+import pandas as pd
+from datetime import datetime
 
         if st.button("학습 계획 추천받기"):
             importance_map = {"낮음": 1, "보통": 2, "높음": 3, "매우 높음": 4}
             df["중요도점수"] = df["중요도"].map(importance_map)
+            df['기한'] = pd.to_datetime(df['기한'], errors='coerce')
+
             df["남은일수"] = (df["기한"] - datetime.today().date()).dt.days
             df = df.sort_values(by=["중요도점수", "남은일수"], ascending=[False, True])
 
