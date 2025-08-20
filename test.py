@@ -1,4 +1,4 @@
-# app.py
+
 import streamlit as st
 import datetime
 
@@ -11,18 +11,6 @@ themes = {
     1500: {"name": "사막 테마 🏜️", "color": "#e67e22", "effect": "sparkle"},
     2000: {"name": "겨울 테마 ❄️", "color": "#8ecae6", "effect": "snow"},
 }
-
-# ------------------ 동적 배경 적용 ------------------
-bg_color = get_background_color()
-st.markdown(f"""
-    <style>
-    .stApp {{
-        background: {bg_color};
-        transition: background 0.8s ease;
-    }}
-    </style>
-""", unsafe_allow_html=True)
-
 
 # ------------------ 세션 초기화 ------------------
 if "points" not in st.session_state:
