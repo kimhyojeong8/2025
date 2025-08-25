@@ -1,275 +1,404 @@
+# app.py
 import streamlit as st
 import datetime
+from streamlit.components.v1 import html
 
 st.set_page_config(page_title="Green Activity for Me", layout="centered")
 
-# ------------------ 테마 정의 ------------------
-theme= {
-    500: {"name": "숲 테마 🌳", "color": "#2ecc71", "effect": "sparkle"},
-    1000: {"name": "바다 테마 🌊", "color": "#3498db", "effect": "rain"},
+# ---------------------------
+# 테마 설정: 점수 -> 메타 정보
+# ---------------------------
+THEMES = {
+    500:  {"name": "숲 테마 🌳", "color": "#2ecc71", "effect": "sparkle"},
+    1000: {"name": "바다 테마 🌊", "color": "#3498db", "effect": "wave"},
     1500: {"name": "사막 테마 🏜️", "color": "#e67e22", "effect": "sparkle"},
-    2000: {"name": "겨울 테마 ❄️", "color": "#8ecae6", "effect": "snow"},
+    2000: {"name": "겨울 테마 ❄️", "color": "#7fb3d5", "effect": "snow"},
+    2500: {"name": "비 오는 테마 🌧️", "color": "#95a5a6", "effect": "rain"},
 }
 
-# ------------------ 세션 초기화 ------------------
+# ---------------------------
+# 초기 session_state
+# ---------------------------
 if "points" not in st.session_state:
     st.session_state.points = 0
-if "themes_owned" not in st.session_state:
-    st.session_state.themes_owned = {}  # name -> theme dict
+if "owned_themes" not in st.session_state:
+    st.session_state.owned_themes = {}  # name -> meta (color, effect)
 if "last_attendance" not in st.session_state:
     st.session_state.last_attendance = None
-if "new_theme" not in st.session_state:
-    st.session_state.new_theme = None
+if "new_theme_unlocked" not in st.session_state:
+    st.session_state.new_theme_unlocked = None
 if "page" not in st.session_state:
     st.session_state.page = None
+if "active_theme" not in st.session_state:
+    st.session_state.active_theme = None  # name of applied theme
 
-# ------------------ 공통 CSS (초록 테마 기본 + 애니메이션) ------------------
-COMMON_CSS = """
+# ---------------------------
+# 공통 CSS + 애니메이션 정의 (사용자 스타일)
+# ---------------------------
+BASE_STYLES = """
 <style>
-/* 전체 폰트 / 카드 스타일 */
-body, .css-18e3th9, .stApp {
-    font-family: "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+/* 기본 귀여운 초록 배경 & 카드 스타일 */
+html, body, [class*="css"]  {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
-/* 앱 기본 귀여운 초록 배경: (테마 획득 전 조건에 따라 적용) */
-.app-bg-cute {
-    background: linear-gradient(135deg, #eafaf0 0%, #d7f4dd 50%, #bff0c5 100%);
-    border-radius: 16px;
+.app-container {
     padding: 18px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
 }
-/* 버튼 스타일 */
-.stButton>button {
-    background: linear-gradient(180deg, #5cd26a, #3fb24f);
-    color: white;
+.header {
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+.green-bg {
+    background: linear-gradient(180deg,#e9f8ec, #daf6dd);
+    color: #074d17;
+}
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    margin: 8px 0;
+    box-shadow: 0 6px 14px rgba(7,77,23,0.06);
+}
+.big-btn > button {
+    background-color: #39b54a !important;
+    color: white !important;
+    font-weight: 700;
     border-radius: 10px;
     padding: 8px 14px;
-    font-weight: 700;
 }
-/* 메인 카드, 헤더 */
-.card {
-    padding: 14px;
-    border-radius: 12px;
-    margin-bottom: 12px;
-}
-/* 작은 뱃지 */
-.badge {
+
+/* 반짝이 텍스트 애니메이션 */
+.sparkle-text {
     display:inline-block;
-    background:#ffffffaa;
-    padding:6px 10px;
-    border-radius:999px;
-    font-weight:700;
-    margin-left:8px;
-}
-
-/* ----------------- 반짝이 (sparkle) ----------------- */
-.sparkle-wrap {
-    pointer-events: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    overflow: hidden;
-    z-index: 9998;
-}
-.sparkle {
-    position: absolute;
-    width: 6px; height: 6px;
-    background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.2) 60%);
-    opacity: 0.9;
-    border-radius: 50%;
-    filter: drop-shadow(0 0 6px rgba(255,255,200,0.9));
-    animation: sparkleMove 2s linear infinite;
-}
-@keyframes sparkleMove {
-    0% { transform: translateY(10vh) scale(0.6); opacity:0; }
-    30% { opacity:1; }
-    100% { transform: translateY(-10vh) scale(1.2); opacity:0; }
-}
-
-/* ----------------- 눈 (snow) ----------------- */
-.snow-wrap {
-    pointer-events: none;
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: 100vh;
-    z-index: 9998;
-}
-.snowflake {
-    position: absolute;
-    top: -10%;
-    color: white;
-    font-size: 18px;
-    user-select:none;
-    animation: fall 6s linear infinite;
-    opacity: 0.9;
+    animation: sparkle 1.6s infinite alternate;
     text-shadow: 0 0 6px rgba(255,255,255,0.9);
 }
-@keyframes fall {
-    0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity:1; }
-    100% { transform: translateY(110vh) translateX(30vw) rotate(360deg); opacity:0; }
+@keyframes sparkle {
+    from { text-shadow: 0 0 6px rgba(255,255,255,0.85), 0 0 10px rgba(255,230,120,0.6); transform: translateY(0px); }
+    to   { text-shadow: 0 0 12px rgba(255,255,255,1), 0 0 26px rgba(255,230,120,0.9); transform: translateY(-4px); }
 }
 
-/* ----------------- 비 (rain) ----------------- */
-.rain-wrap {
-    pointer-events: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    overflow: hidden;
-    z-index: 9998;
-}
-.rain-drop {
+/* 눈 애니메이션 (여러 개의 눈송이) */
+.snow-area { position: relative; overflow: hidden; height: 140px; }
+.snowflake {
     position: absolute;
-    top: -10%;
-    width: 2px;
-    height: 18px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.8), rgba(255,255,255,0.2));
-    opacity: 0.8;
-    transform: skewX(-15deg);
-    animation: rainFall 0.8s linear infinite;
+    top: -10px;
+    color: #fff;
+    font-size: 18px;
+    opacity: 0.95;
+    animation: fall 5s linear infinite;
 }
-@keyframes rainFall {
-    0% { transform: translateY(-5vh) translateX(0) }
-    100% { transform: translateY(110vh) translateX(20vw) }
+@keyframes fall {
+    0% { transform: translateY(-10px) translateX(0px); opacity: 1; }
+    100% { transform: translateY(140px) translateX(60px); opacity: 0.0; }
 }
 
-/* 작은 꾸밈 (귀여운 타이틀) */
-.title-cute {
-    font-size:28px;
-    font-weight:800;
-    display:flex;
-    align-items:center;
-    gap:12px;
+/* 비 애니메이션 */
+.rain-area { position: relative; overflow: hidden; height: 140px; }
+.drop {
+    position: absolute;
+    top: -10px;
+    width: 2px;
+    height: 14px;
+    background: rgba(255,255,255,0.8);
+    opacity: 0.9;
+    border-radius: 1px;
+    animation: drop 0.9s linear infinite;
 }
-.leaf {
-    width:44px; height:44px;
-    border-radius:12px;
-    background: linear-gradient(#6ee7a5, #2ecc71);
-    display:flex; align-items:center; justify-content:center;
-    box-shadow: 0 6px 18px rgba(74, 222, 128, 0.18);
-    font-weight:900;
-    color:white;
+@keyframes drop {
+    0% { transform: translateY(-10px); opacity: 0.9; }
+    100% { transform: translateY(160px); opacity: 0; }
 }
+
+/* 파도 효과 (부드러운 좌우 움직임 배경) */
+.wave-area {
+    height: 140px;
+    position: relative;
+    overflow: hidden;
+}
+.ocean {
+    position: absolute;
+    bottom: -10px;
+    left: -10%;
+    width: 120%;
+    height: 120px;
+    background: radial-gradient(circle at 50% 10%, rgba(255,255,255,0.08), rgba(0,0,0,0));
+    transform: translateX(0);
+    animation: sway 6s ease-in-out infinite;
+    opacity: 0.9;
+}
+@keyframes sway {
+    0% { transform: translateX(-4%); }
+    50% { transform: translateX(4%); }
+    100% { transform: translateX(-4%); }
+}
+
+/* NEW 배너 */
+.new-banner {
+    padding: 10px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(255,235,179,1), rgba(255,205,100,1));
+    font-weight: 700;
+    display:inline-block;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+}
+
+/* small utility */
+.center { text-align:center; }
+.small { font-size:0.9rem; color:#555; }
 </style>
 """
 
-# ------------------ 효과 렌더링 헬퍼 ------------------
-def render_effect_html(effect_name, color="#ffffff"):
-    """effect_name in {'sparkle','snow','rain'}"""
-    if effect_name == "sparkle":
-        # generate multiple sparkle spans at random positions
-        sparkles_html = "<div class='sparkle-wrap'>"
-        # fixed positions for deterministic rendering (no JS RNG)
-        positions = [
-            (10, 60, 0.9), (20, 30, 1.6), (40, 80, 1.1),
-            (60, 20, 1.9), (75, 50, 1.2), (85, 70, 1.5),
-            (30, 40, 2.0), (50, 60, 1.3), (65, 35, 1.8)
-        ]
-        for idx, (left, top, dur) in enumerate(positions):
-            sparkles_html += f"<div class='sparkle' style='left:{left}%; top:{top}%; width:{4+idx%4}px; height:{4+idx%4}px; animation-duration:{dur}s; background: radial-gradient(circle, {color} 0%, rgba(255,255,255,0.15) 60%);'></div>"
-        sparkles_html += "</div>"
-        return sparkles_html
+# ---------------------------
+# 애니메이션 렌더 함수 (HTML 문자열 생성)
+# ---------------------------
+def render_effect_html(effect, color):
+    """
+    effect: 'sparkle', 'snow', 'rain', 'wave'
+    color: hex string for accent
+    """
+    if effect == "sparkle":
+        # 중앙 텍스트에 반짝이 CSS 적용
+        html_code = f"""
+        <div class="card" style="background:{color}; color: #fff; border-radius:12px;">
+            <div class="center" style="padding:24px;">
+                <div class="sparkle-text" style="font-size:22px;">✨ 테마 적용중 ✨</div>
+                <div style="margin-top:8px; font-weight:700;">{color} 컬러 테마</div>
+            </div>
+        </div>
+        """
+    elif effect == "snow":
+        # 여러 눈송이 span을 배치
+        snow_drops = ""
+        # create multiple flakes with varying left and animation-duration
+        for i in range(12):
+            left = (i * 8) % 100
+            dur = 4 + (i % 4) * 0.8
+            size = 10 + (i % 4) * 3
+            snow_drops += f"<div class='snowflake' style='left:{left}%; animation-duration:{dur}s; font-size:{size}px;'>&#10052;</div>"
+        html_code = f"""
+        <div class="card" style="background:{color}; color: #fff; border-radius:12px;">
+            <div class="snow-area" style="padding:12px;">
+                {snow_drops}
+                <div style="position:absolute; left:12px; top:8px; font-weight:700;">❄️ 눈 테마가 적용되었습니다</div>
+            </div>
+        </div>
+        """
+    elif effect == "rain":
+        drops = ""
+        for i in range(22):
+            left = (i * 4.5) % 100
+            delay = (i % 5) * 0.12
+            height = 10 + (i % 3) * 6
+            drops += f"<div class='drop' style='left:{left}%; animation-duration:{0.7 + (i%3)*0.2}s; top:-10px; height:{height}px; animation-delay:{delay}s;'></div>"
+        html_code = f"""
+        <div class="card" style="background:{color}; color: #fff; border-radius:12px;">
+            <div class="rain-area" style="padding:8px;">
+                {drops}
+                <div style="position:absolute; left:12px; top:8px; font-weight:700;">🌧️ 비가 내리고 있어요</div>
+            </div>
+        </div>
+        """
+    elif effect == "wave":
+        html_code = f"""
+        <div class="card" style="background:{color}; color:#fff; border-radius:12px;">
+            <div class="wave-area" style="padding:8px;">
+                <div class="ocean"></div>
+                <div style="position:absolute; left:12px; top:12px; font-weight:700;">🌊 바다의 파도 소리</div>
+            </div>
+        </div>
+        """
+    else:
+        html_code = f"<div class='card'>테마 미리보기</div>"
+    return html_code
 
-    if effect_name == "snow":
-        snow_html = "<div class='snow-wrap'>"
-        # multiple snowflakes at different left positions and durations
-        lefts = [5, 15, 25, 35, 45, 55, 65, 75, 85, 92]
-        sizes = [12, 16, 14, 18, 10, 20, 12, 15, 11, 17]
-        durs = [6,7,5.5,8,6.5,7.5,6,8.5,5.8,7.2]
-        for i, (l, s, d) in enumerate(zip(lefts, sizes, durs)):
-            snow_html += f"<div class='snowflake' style='left:{l}%; font-size:{s}px; animation-duration:{d}s; opacity:{0.7 + i*0.02};'>❄️</div>"
-        snow_html += "</div>"
-        return snow_html
+# ---------------------------
+# 활용: 상단 프리뷰 영역 렌더
+# ---------------------------
+def render_top_preview():
+    """
+    전체 상단 영역(헤더) — 현재 적용된 테마(active_theme)가 있으면 그 색상/효과로 표시,
+    없으면 기본 초록색 귀여운 영역을 보여줌.
+    """
+    st.markdown(BASE_STYLES, unsafe_allow_html=True)
 
-    if effect_name == "rain":
-        rain_html = "<div class='rain-wrap'>"
-        lefts = [3, 10, 18, 25, 33, 42, 50, 59, 68, 78, 86, 92]
-        durs = [0.8,0.9,0.7,0.85,0.95,0.8,0.7,0.85,0.9,0.8,0.75,0.88]
-        for i, (l, d) in enumerate(zip(lefts, durs)):
-            height = 14 + (i % 4) * 4
-            rain_html += f"<div class='rain-drop' style='left:{l}%; height:{height}px; animation-duration:{d}s; opacity:0.6;'></div>"
-        rain_html += "</div>"
-        return rain_html
+    # 헤더 컨테이너
+    if st.session_state.active_theme:
+        meta = st.session_state.owned_themes.get(st.session_state.active_theme)
+        if meta:
+            color = meta["color"]
+            effect = meta["effect"]
+            # render effect block using component html
+            preview_html = render_effect_html(effect, color)
+            html(preview_html, height=160)
+    else:
+        # 기본 초록 귀여운 헤더
+        base_html = f"""
+        <div class="header green-bg">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <h2 style="margin:0 0 4px 0">🌱 Green Activity for Me</h2>
+                    <div class="small">친환경 활동으로 점수를 모아 테마를 잠금해제해보세요!</div>
+                </div>
+                <div style="text-align:right; min-width:150px;">
+                    <div style="font-weight:800; font-size:18px;">🏆 현재 점수</div>
+                    <div style="font-size:20px; color:#0b7a3a;">{st.session_state.points} 점</div>
+                </div>
+            </div>
+        </div>
+        """
+        html(base_html, height=140)
 
-    return ""
+# ---------------------------
+# 메뉴: 메인 (내 활동 / 테마 목록)
+# ---------------------------
+st.markdown('<div class="app-container">', unsafe_allow_html=True)
+render_top_preview()
 
-# ------------------ 출력: 공통 CSS ------------------
-st.markdown(COMMON_CSS, unsafe_allow_html=True)
-
-# ------------------ 앱 타이틀 / 네비 ------------------
-st.markdown("<div class='app-bg-cute card'>", unsafe_allow_html=True)
-st.markdown(
-    "<div class='title-cute'><div class='leaf'>GA</div>"
-    "<div>Green Activity for Me <span class='badge'>친환경 × 리워드</span></div></div>",
-    unsafe_allow_html=True
-)
-st.markdown("</div>", unsafe_allow_html=True)
-
-# 네비 버튼
-col1, col2 = st.columns([1,1])
-with col1:
-    if st.button("내 활동"):
+cols = st.columns([1,1,1])
+with cols[0]:
+    if st.button("내 활동", key="menu_activity", help="출석/활동 기록 페이지로 이동"):
         st.session_state.page = "activity"
-with col2:
-    if st.button("테마 목록"):
+with cols[1]:
+    if st.button("테마 목록", key="menu_themes", help="보유/미보유 테마 확인"):
         st.session_state.page = "themes"
+with cols[2]:
+    if st.button("테마 적용 해제", key="menu_clear", help="기본 초록 테마로 되돌리기"):
+        st.session_state.active_theme = None
 
-# ------------------ 메인 로직: 페이지 분기 ------------------
-# 기본: 메인 안내 (페이지 None)
-if st.session_state.page is None:
-    st.markdown("<br>")
-    st.markdown("<div class='card app-bg-cute'>"
-                "<h3>안내</h3>"
-                "<ul>"
-                "<li>출석과 친환경 활동으로 점수를 얻으세요.</li>"
-                "<li>점수는 테마(숲/바다/사막/겨울)를 자동 획득하는 데 사용됩니다.</li>"
-                "<li>획득 전 기본 앱 배경은 귀여운 초록 테마입니다.</li>"
-                "</ul></div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='card'><b>현재 점수:</b> <span style='font-size:18px; font-weight:800'>{st.session_state.points}점</span></div>", unsafe_allow_html=True)
+st.write("")  # spacing
 
-# ------------------ 내 활동 페이지 ------------------
+# ---------------------------
+# 페이지: 내 활동
+# ---------------------------
 if st.session_state.page == "activity":
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.subheader("📅 내 활동")
-    # current score
-    st.markdown(f"### 🏆 현재 점수: {st.session_state.points}")
-    # 출석 체크
+    st.subheader("♻️ 내 활동")
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.write(f"**현재 점수:** {st.session_state.points} 점")
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 출석
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 📅 출석 체크")
     today = datetime.date.today()
     if st.session_state.last_attendance != today:
         if st.button("출석 체크 하기 (+100점)"):
             st.session_state.points += 100
             st.session_state.last_attendance = today
-            st.success(f"출석 완료! +100점 (총점: {st.session_state.points})")
+            st.success(f"출석 완료! +100점 획득 (총점: {st.session_state.points} 점)")
     else:
         st.info("오늘은 이미 출석했습니다 ✅")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("---")
     # 활동 기록
-    st.markdown("#### ♻️ 활동 기록")
-    activity = st.selectbox("활동 종류", ["분리수거", "전기 절약", "친환경 캠페인", "기타"])
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("### 📝 활동 기록")
+    activity = st.selectbox("활동 종류", ["분리수거", "전기 절약", "친환경 캠페인", "기타"], key="act_select")
     if activity == "기타":
-        etc_input = st.text_input("기타 활동 내용을 입력하세요:")
+        other_text = st.text_input("기타 활동 내용을 입력하세요", key="other_input")
         if st.button("기타 활동 기록하기 (+45점)"):
-            if etc_input.strip():
+            if other_text.strip():
                 st.session_state.points += 45
-                st.success(f"'{etc_input}' 활동으로 45점 획득! (총점: {st.session_state.points})")
+                st.success(f"'{other_text}' 활동으로 +45점 획득 (총점: {st.session_state.points} 점)")
             else:
-                st.warning("활동 내용을 입력해 주세요.")
+                st.warning("활동 내용을 입력해주세요.")
     else:
         if st.button("활동 기록하기"):
-            activity_points = {"분리수거": 50, "전기 절약": 70, "친환경 캠페인": 100}
-            gained = activity_points.get(activity, 0)
-            st.session_state.points += gained
-            st.success(f"{activity} 활동으로 {gained}점 획득! (총점: {st.session_state.points})")
+            points_map = {"분리수거":50,"전기 절약":70,"친환경 캠페인":100}
+            g = points_map.get(activity, 0)
+            st.session_state.points += g
+            st.success(f"{activity} 활동으로 +{g}점 획득 (총점: {st.session_state.points} 점)")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 자동 테마 획득 (점수 도달 시)
-    newly_awarded = []
-    for score in sorted(themes.keys()):
-        theme = themes[score]
-        if st.session_state.points >= score and theme["name"] not in st.session_state.themes_owned:
-            st.session_state.themes_owned[theme["name"]] = theme
-            newly_awarded.append(theme)
+    # 테마 자동 획득: 점수 돌면서 체크
+    unlocked_any = False
+    for threshold, meta in THEMES.items():
+        if st.session_state.points >= threshold and meta["name"] not in st.session_state.owned_themes:
+            # unlock
+            st.session_state.owned_themes[meta["name"]] = {"color":meta["color"], "effect":meta["effect"], "threshold":threshold}
+            st.session_state.new_theme_unlocked = meta["name"]
+            unlocked_any = True
 
-    # 만약 새 테마가 생겼다면 알림과 애니메이션 (가장 최근 테마 기준)
-    if newly_awarded:
-        last_new = newly_awarded[-1]
-        st.session_state.new_theme = last_new
-        st.success(f"🎉 NEW! {last_new['name']} 획득!")
-        # show big badge + effect
+    if st.session_state.new_theme_unlocked:
+        # NEW! 배너와 애니메이션 표시
+        new_name = st.session_state.new_theme_unlocked
+        st.markdown(f"<div class='new-banner'>🎉 NEW! {new_name} 잠금 해제!</div>", unsafe_allow_html=True)
+        # short preview of the new theme effect
+        meta = st.session_state.owned_themes[new_name]
+        st.markdown(render_effect_html(meta["effect"], meta["color"]), unsafe_allow_html=True)
+        st.session_state.new_theme_unlocked = None
+
+    # 뒤로가기
+    if st.button("⬅️ 메인으로 돌아가기"):
+        st.session_state.page = None
+
+# ---------------------------
+# 페이지: 테마 목록
+# ---------------------------
+elif st.session_state.page == "themes":
+    st.subheader("📖 테마 목록")
+    owned = list(st.session_state.owned_themes.keys())
+    not_owned = [v["name"] for v in THEMES.values() if v["name"] not in owned]
+    st.markdown(f"**보유 테마:** {len(owned)} / {len(THEMES)}　　**미보유 테마 수:** {len(not_owned)}")
+
+    # 리스트 형태로 각 테마 표시. 보유시 적용/해제 버튼 제공, 미보유시 필요 점수 안내
+    for threshold, meta in THEMES.items():
+        name = meta["name"]
+        color = meta["color"]
+        effect = meta["effect"]
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        cols = st.columns([3,1,1])
+        with cols[0]:
+            if name in st.session_state.owned_themes:
+                st.markdown(f"<div style='font-weight:800; color:{color};'>{name}</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='small'>효과: {effect} · 획득 기준: {threshold}점</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(f"<div style='font-weight:800; color:gray'>{name} (미보유)</div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='small'>필요 점수: {threshold} 점</div>", unsafe_allow_html=True)
+        with cols[1]:
+            if name in st.session_state.owned_themes:
+                if st.button(f"적용", key=f"apply_{name}"):
+                    st.session_state.active_theme = name
+            else:
+                st.write("")  # spacing
+        with cols[2]:
+            if name in st.session_state.owned_themes:
+                if st.button("해제", key=f"clear_{name}"):
+                    # apply none (if the theme being cleared is currently active, unset)
+                    if st.session_state.active_theme == name:
+                        st.session_state.active_theme = None
+                    # remove from owned? probably keep owned; provide 'remove' if desired
+                    # here we keep as owned but just allow "해제" to deactivate theme
+                    st.success(f"{name} 적용을 해제했습니다.")
+            else:
+                if st.session_state.points >= threshold:
+                    if st.button("구매(즉시 해제없이 소유)", key=f"buy_{name}"):
+                        st.session_state.owned_themes[name] = {"color":color, "effect":effect, "threshold":threshold}
+                        st.success(f"{name}을(를) 소유 목록에 추가했습니다.")
+                else:
+                    st.write("")  # not enough points: no button
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.write("---")
+    st.markdown("**테마 미리보기 영역**")
+    # 작은 미리보기: 현재 활성 테마가 없으면 기본 안내, 있으면 그 테마 효과 렌더
+    if st.session_state.active_theme:
+        meta = st.session_state.owned_themes.get(st.session_state.active_theme)
+        st.markdown(render_effect_html(meta["effect"], meta["color"]), unsafe_allow_html=True)
+    else:
+        st.info("적용된 테마가 없습니다. 보유 테마에서 '적용'을 눌러보세요!")
+
+    if st.button("⬅️ 메인으로 돌아가기"):
+        st.session_state.page = None
+
+# ---------------------------
+# 기본(메인) 화면: page == None
+# ---------------------------
+else:
+    st.markdown("### 환영합니다! 메뉴에서 `내 활동` 또는 `테마 목록`을 선택하세요.")
+    st.markdown("앱은 기본적으로 **초록색 귀여운 디자인**으로 표시됩니다. 테마를 획득하면 `테마 적용`으로 배경과 애니메이션을 미리 볼 수 있어요.")
+    st.markdown("---")
+
+st.markdown('</div>', unsafe_allow_html=True)
