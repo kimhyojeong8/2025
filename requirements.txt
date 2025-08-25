@@ -1,4 +1,2 @@
 pandas
 datetime
-Jason
-os
